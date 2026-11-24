@@ -163,8 +163,17 @@ DWORD WINAPI RegQueryValueExW_new(
     return status;
 }
 
-
-
+HRESULT WINAPI WinVerifyTrustEx_new(
+    HWND          hwnd,
+    GUID* pgActionID,
+    enum WINTRUST_DATA* pWinTrustData
+) {
+    /*
+       xlive checks signature msidcrl40.dll with WINTRUST
+       By returning S_OK here it makes it think that the signature is valid.
+    */
+    return S_OK;
+}
 
 DWORD WINAPI Initialize(LPVOID lpThreadParameter)
 {
@@ -214,7 +223,7 @@ DWORD WINAPI Initialize(LPVOID lpThreadParameter)
                 break;
             }
         }
-
+        MH_CreateHookApi(L"wintrust.dll", "WinVerifyTrustEx", (LPVOID)WinVerifyTrustEx_new, NULL);
         if ((hookedA || hookedW) && MH_EnableHook(MH_ALL_HOOKS) == MH_OK)
         {
             std::cout << "Successful Startup\n";
