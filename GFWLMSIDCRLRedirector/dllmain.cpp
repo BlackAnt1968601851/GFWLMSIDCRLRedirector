@@ -113,7 +113,7 @@ DWORD WINAPI RegQueryValueExA_new(
 ) {
     DWORD status = RegQueryValueExA_orig(hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
 
-    if (lpType && *lpType == REG_SZ && lpValueName && strcmp(lpValueName, "TargetDir") == 0) {
+    if (lpValueName && strcmp(lpValueName, "TargetDir") == 0) {
         std::string gamePath = GetGamePathA();
         DWORD requiredLen = (DWORD)(gamePath.size() + 1); // include null terminator
 
@@ -143,7 +143,7 @@ DWORD WINAPI RegQueryValueExW_new(
 ) {
     DWORD status = RegQueryValueExW_orig(hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
 
-    if (lpType && *lpType == REG_SZ && lpValueName && wcscmp(lpValueName, L"TargetDir") == 0) {
+    if (lpValueName && wcscmp(lpValueName, L"TargetDir") == 0) {
         std::wstring gamePath = GetGamePathW();
         DWORD requiredLen = (DWORD)((gamePath.size() + 1) * sizeof(wchar_t)); // include null terminator
 
@@ -163,8 +163,17 @@ DWORD WINAPI RegQueryValueExW_new(
     return status;
 }
 
-
-
+HRESULT WINAPI WinVerifyTrustEx_new(
+    HWND          hwnd,
+    GUID* pgActionID,
+    enum WINTRUST_DATA* pWinTrustData
+) {
+    /*
+       xlive checks signature msidcrl40.dll with WINTRUST
+       By returning S_OK here it makes it think that the signature is valid.
+    */
+    return S_OK;
+}
 
 DWORD WINAPI Initialize(LPVOID lpThreadParameter)
 {
@@ -190,17 +199,34 @@ DWORD WINAPI Initialize(LPVOID lpThreadParameter)
         std::cerr << "Error getting path" << std::endl;
     }
 
+    const wchar_t* dlls[] = { L"kernelbase.dll", L"kernel32.dll", L"advapi32.dll" };
+
     if (MH_Initialize() == MH_OK)
     {
-        if (MH_CreateHookApi(L"kernelbase.dll", "RegQueryValueExA", (LPVOID)RegQueryValueExA_new, (LPVOID*)&RegQueryValueExA_orig) == MH_OK)
+        bool hookedA = false;
+        bool hookedW = false;
+
+        for (const wchar_t* dll : dlls)
         {
-            if (MH_CreateHookApi(L"kernelbase.dll", "RegQueryValueExW", (LPVOID)RegQueryValueExW_new, (LPVOID*)&RegQueryValueExW_orig) == MH_OK)
+            if (!hookedA && MH_CreateHookApi(dll, "RegQueryValueExA", (LPVOID)RegQueryValueExA_new, (LPVOID*)&RegQueryValueExA_orig) == MH_OK)
             {
-                if (MH_EnableHook(MH_ALL_HOOKS) == MH_OK)
-                {
-                    std::cout << "Successful Startup\n";
-                }
+                hookedA = true;
             }
+
+            if (!hookedW && MH_CreateHookApi(dll, "RegQueryValueExW", (LPVOID)RegQueryValueExW_new, (LPVOID*)&RegQueryValueExW_orig) == MH_OK)
+            {
+                hookedW = true;
+            }
+
+            if (hookedA && hookedW)
+            {
+                break;
+            }
+        }
+        MH_CreateHookApi(L"wintrust.dll", "WinVerifyTrustEx", (LPVOID)WinVerifyTrustEx_new, NULL);
+        if ((hookedA || hookedW) && MH_EnableHook(MH_ALL_HOOKS) == MH_OK)
+        {
+            std::cout << "Successful Startup\n";
         }
     }
     return 0;
