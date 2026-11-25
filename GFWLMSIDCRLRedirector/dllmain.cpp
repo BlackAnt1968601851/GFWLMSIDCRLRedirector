@@ -5,7 +5,7 @@
 
 //BlackAnt's WLID Changer for GFWL
 //This was a pain but I got it to redirect to C:\wlid
-//Thanks to Diman, zzVertigo, TheTank20, and WitherOrNot
+//Thanks to Diman, zzVertigo, TheTank20, WitherOrNot, and EAZY BLACK.
 
 static DWORD(WINAPI* RegQueryValueExA_orig)(HKEY hKey, LPCSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData);
 static DWORD(WINAPI* RegQueryValueExW_orig)(HKEY hKey, LPWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData);
